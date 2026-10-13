@@ -22,14 +22,25 @@ trigger a restore.
 
 ## First-use setup
 
-`quality --root . --init` now performs setup in this order:
+An installation request includes the guided setup in this conversation; do not
+stop after installation to ask permission to start it. Read the installed guide
+directly if automatic skill discovery needs a restart.
+
+For agent-led first-time setup, follow [guided project setup](project-setup-chat.md).
+Discuss gates and limits in chat, then initialize configuration without running
+checks using `python3 <skill-directory>/scripts/repo_quality_gate.py --root . --init`.
+Save accepted choices before running the first baseline. All settings belong to
+this project's `.quality/` files; reuse them on later tasks.
+
+The terminal convenience command `quality --root . --init` performs setup in this order:
 
 1. Inspect files and manifests without running project code or changing files.
 2. Write the gate files and `.quality/project-profile.json`.
 3. Run and print the first baseline report.
 4. Ask at most three questions that cannot be answered from the repository.
 
-Use `--non-interactive` in CI or with an agent. Pending questions print after
+This terminal command retains its baseline-first behavior; do not use it for
+the guided chat workflow. Use `--non-interactive` in CI or with an agent. Pending questions print after
 the baseline and can be answered without a terminal dialog:
 
 ```bash
@@ -116,7 +127,13 @@ In a Claude Code plugin, the skill directory is
 `${CLAUDE_PLUGIN_ROOT}/skills/code-discipline`; in Codex, use the directory of
 the loaded `SKILL.md`.
 
-`.quality/quality-gate.json` owns commands and adapters. `.quality/quality-thresholds.json`
+`.quality/quality-gate.json` owns project gate choices, commands, and adapters. Its
+`gates` object maps gate keys to booleans; see the complete keys in the
+[setup guide](project-setup-chat.md#choose-gates-one-topic-at-a-time).
+Explicit `true` enables a gate and requires its evidence; `false` prevents its
+execution and reports OFF, even if a check flag selects it. Omitted keys retain
+existing behavior. This policy does not turn a full run into a selected run.
+All gates OFF cannot certify. `.quality/quality-thresholds.json`
 owns every numeric goal and overrides the bundled defaults in
 `../quality-thresholds.json`, including `file_loc.max_lines: 600`. Never copy
 thresholds into `.quality/quality-gate.json`. `.quality/quality-dependencies.json`
@@ -221,7 +238,8 @@ people):
 7. `QUALITY_LOOP=PASS|FAIL|READY_FOR_FULL|ERROR`, `ITEMS_TO_FIX=n`, `STATE=`,
    `HTML=`.
 
-Gates marked OFF (mutation, flaky) are off in the configuration and run only
+Any gate can be saved as OFF in the project's `gates` object; re-enable it there
+before selecting it with a check flag. Legacy gates marked OFF (mutation, flaky) are off in their section configuration and run only
 when requested with `--mutation` / `--flaky`, or when the configuration enables
 them. Nothing is skipped silently: skipped, deferred, and off gates are listed.
 
@@ -268,7 +286,8 @@ yet.
 ## The per-step cycle
 
 New project: skeleton (manifest, test runner, one passing test of one real
-function, start command) → `--init` → `--local-changes --fast` green with 0
+function, start command) → guided setup and configuration-only initialization
+→ saved project policy → `--local-changes --fast` green with 0
 items → commit. Then for every feature: write its test and code →
 `--local-changes --fast` → `quality_items.py --next` → fix that file → rerun →
 … → READY_FOR_FULL → `git commit`. Because each step is committed, every fast
@@ -363,9 +382,10 @@ execution, and every step/hook passed. Missing, extra, duplicate, skipped,
 undefined, pending, ambiguous, and failed results fail. Tag filters must not omit
 required scenarios. Changed YAML, changed generated features, or an unchanged report fail.
 
-Run `--gherkin` for focused feedback. Fast mode defers acceptance execution;
-the full ship report requires it and cannot mark it OFF or N/A. Existing projects
-must add acceptance configuration before their next full certification.
+Run `--gherkin` for focused feedback when enabled. Fast mode defers acceptance
+execution. The full ship report requires acceptance evidence when the project
+enables Gherkin; `gates.gherkin: false` reports OFF. A project that keeps it
+enabled must add acceptance configuration before full certification.
 
 See the [Gherkin reference](https://cucumber.io/docs/gherkin/reference/) and
 [Behave JSON formatter](https://behave.readthedocs.io/en/stable/appendix.formatters/).
@@ -437,19 +457,22 @@ hard to unit-test gets a startup or smoke test, not an exclusion.
 
 Before handoff use whole-repository scope for a new project or audit,
 `--local-changes` for existing work, or `--commit REF` for a requested commit.
-Omit all check flags. A green ship report means every applicable formatter,
+Omit all check flags. A green ship report means every enabled, applicable formatter,
 lint, type, contract, test, test-count, coverage, cyclomatic/cognitive
 complexity, nesting, CRAP, duplication, smoke, Gherkin acceptance, file-LOC, dead-code,
 dependency-cycle/coupling, module-boundary, secret, OSV, hotspot, and gate-scope
 goal passed, plus flaky and mutation goals when they are enabled or requested. Red means not finished: fix
-every listed item and rerun until it exits `0`. Never lower thresholds, disable
-a gate, cap the final mutation run, skip tests, weaken assertions, add
+every listed item and rerun until it exits `0`. Never lower thresholds or disable
+a gate merely to obtain green. The user can explicitly revise project policy;
+save their choice and rerun, making the reduced evidence clear. Never cap the
+final mutation run, skip tests, weaken assertions, add
 pass-only suppressions, broaden allow-lists, exclude production files, or
 replace checks with no-ops. If a gate cannot measure valid code, repair the
 adapter or configuration — never rewrite correct code merely to manufacture a
 measurable target. When the report prints `HAND OFF NOW`, the next message is
 the hand-off: the deliverables list and the report's status line. Nothing is
-added after green — not a linter, not a formatter, not another check.
+added after green — not a linter, not a formatter, not another check. Report the
+disabled gates with the status; PASS covers only the chosen project policy.
 
 ## Full-run invariants
 

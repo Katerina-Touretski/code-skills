@@ -1,5 +1,10 @@
 # Repository quality environment setup
 
+Installing code-discipline for a project includes this setup in the same chat.
+Read [guided setup](project-setup-chat.md) before installing. After installation,
+start its first question directly; do not ask whether to begin setup or hand off
+after copying files. Preserve current policy as the starting recommendation.
+
 Use this guide when the user asks to prepare, bootstrap, or harden a repository
 for the complete quality loop. Preserve the repository's existing runtime,
 package manager, lockfile, commands, and CI conventions. Quality tools belong
@@ -18,13 +23,21 @@ available.
    or absent dependency produces `BLOCKED` evidence with the missing
    prerequisite. Ask the repository owner to prepare dependencies outside the
    quality run if they want those project-native checks to execute.
-3. From the repository root, start progressive setup:
+3. For first-time agent setup, use the [guided chat workflow](project-setup-chat.md).
+   Explain gates and limits, collect choices, and create configuration without
+   executing checks:
 
    ```bash
-   <skill-directory>/scripts/quality --root . --init
+   python3 <skill-directory>/scripts/repo_quality_gate.py --root . --init
    ```
 
-   The command first performs a read-only scan. It then creates
+   Save each gate's ON/OFF choice in `quality-gate.json` under `gates` and numeric
+   limits in `quality-thresholds.json`. Preserve these project choices on later
+   runs. Do not edit bundled defaults or other projects. An enabled gate needs
+   real evidence; missing tooling must not silently disable it.
+
+   The terminal convenience command `<skill-directory>/scripts/quality --root . --init`
+   remains available for a baseline-first setup. It performs a read-only scan, then creates
    `.quality/project-profile.json` for detected facts and confirmed product
    intent, `.quality/quality-gate.json` for commands/adapters,
    `.quality/quality-thresholds.json` for every numeric quality goal, and a
@@ -32,8 +45,7 @@ available.
    become modules with the directions their manifests declare; otherwise one
    module). For npm workspaces it writes per-package Vitest coverage commands
    merged through `--merge-lcov`. Mutation testing and flaky detection start
-   off; enable them in the configuration or run `--mutation` / `--flaky` when
-   asked. It runs and prints the baseline before asking at most three product,
+   off; enable them with explicit project choices when asked. It runs and prints the baseline before asking at most three product,
    runtime, or risk questions. Detection is evidence, not architecture intent.
    In CI or an agent workflow use `--non-interactive`; answer printed questions
    with repeatable `--answer KEY=VALUE` arguments. Use `--setup product`,

@@ -616,6 +616,7 @@ class AnalysisReport:
             self.mode == "full"
             and not self.scope_is_empty
             and bool(self.gates)
+            and any(not gate.off for gate in self.gates)
             and all(gate.passed for gate in self.gates)
         )
 
@@ -625,7 +626,9 @@ class AnalysisReport:
         if self.scope_is_empty:
             return False
         executed = [
-            gate for gate in self.gates if not gate.skipped and not gate.deferred
+            gate
+            for gate in self.gates
+            if not gate.skipped and not gate.deferred and not gate.off
         ]
         return bool(executed) and all(gate.passed for gate in executed)
 
@@ -639,7 +642,11 @@ class AnalysisReport:
         return (
             self.mode == "fast"
             and not self.scope_is_empty
-            and bool(gates := [gate for gate in self.gates if not gate.deferred])
+            and bool(
+                gates := [
+                    gate for gate in self.gates if not gate.deferred and not gate.off
+                ]
+            )
             and all(gate.passed for gate in gates)
         )
 
@@ -1337,6 +1344,7 @@ def without_threshold_values(config: dict[str, Any]) -> dict[str, Any]:
 
 def default_config(thresholds: dict[str, Any] | None = None) -> dict[str, Any]:
     base = {
+        "gates": {},
         "source": {
             "include": [],
             "exclude": list(DEFAULT_TEST_PATTERNS),
@@ -2573,13 +2581,14 @@ class GateSelection:
     keys: frozenset[str] | None = None
     focus: str | None = None
     names: tuple[str, ...] = ()
+    disabled: frozenset[str] = frozenset()
 
     @property
     def partial(self) -> bool:
         return self.keys is not None
 
     def wants(self, key: str) -> bool:
-        return self.keys is None or key in self.keys
+        return key not in self.disabled and (self.keys is None or key in self.keys)
 
     def forces(self, name: str) -> bool:
         return name in self.names
@@ -2608,6 +2617,59 @@ def metrics_focus(names: Sequence[str]) -> str | None:
 
 def gate_selection(names: Sequence[str]) -> GateSelection:
     return GateSelection(selected_gate_keys(names), metrics_focus(names), tuple(names))
+
+
+def project_gate_choices(config: dict[str, Any]) -> dict[str, bool]:
+    """Reject misspelled gates and ambiguous values before executing checks."""
+    choices = config.get("gates", {})
+    if not isinstance(choices, dict):
+        raise ValueError("gates must be an object mapping gate keys to true or false")
+    allowed = set(SELECTABLE_CHECKS.values()) | {"scope"}
+    for key, enabled in choices.items():
+        if key not in allowed or not isinstance(enabled, bool):
+            raise ValueError(
+                f"Invalid project gate choice {key!r}; use a supported gate key and true or false"
+            )
+    return choices
+
+
+def project_gate_selection(
+    choices: dict[str, bool], selection: GateSelection
+) -> GateSelection:
+    """Apply saved project choices without turning a full run into a partial run."""
+    disabled = frozenset(key for key, enabled in choices.items() if not enabled)
+    return dataclasses.replace(selection, disabled=disabled)
+
+
+def project_gate_config(
+    config: dict[str, Any], choices: dict[str, bool]
+) -> dict[str, Any]:
+    """Explicitly enabled project gates require evidence, even with legacy settings."""
+    configured = dict(config)
+    for key, enabled in choices.items():
+        section = "flaky_tests" if key == "flaky" else key
+        if enabled and section in config:
+            configured[section] = {**config[section], "enabled": True, "required": True}
+    return configured
+
+
+def project_gate_results(
+    gates: Sequence[GateResult], selection: GateSelection
+) -> list[GateResult]:
+    """Keep disabled gates visible as OFF, including in explicitly selected runs."""
+    return [
+        GateResult(
+            result.key,
+            result.title,
+            True,
+            f"Off: disabled for this project in {CONFIG_NAME} (gates.{result.key}).",
+            applicable=False,
+            off=True,
+        )
+        if result.key in selection.disabled
+        else result
+        for result in gates
+    ]
 
 
 def skipped_check(key: str, title: str) -> GateResult:
@@ -9066,7 +9128,9 @@ def run(
     selection: GateSelection | None = None,
 ) -> AnalysisReport:
     scope = scope or repository_scope()
-    selection = selection or GateSelection()
+    choices = project_gate_choices(config)
+    config = project_gate_config(config, choices)
+    selection = project_gate_selection(choices, selection or GateSelection())
     languages = detect_languages(root)
     all_source_files = discover_source_files(root, config["source"])
     source_files = discover_source_files(root, config["source"], scope)
@@ -9345,6 +9409,7 @@ def run(
         dependency_inventory=dependency_inventory,
         vulnerabilities=vulnerabilities,
     )
+    analysis.gates = project_gate_results(analysis.gates, selection)
     attach_project_quality(analysis, root, config)
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(html_report(analysis), encoding="utf-8")

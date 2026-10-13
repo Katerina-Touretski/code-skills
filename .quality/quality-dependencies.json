@@ -33,7 +33,8 @@
     {
       "name": "installer",
       "paths": [
-        "skills/code-discipline/scripts/install.py"
+        "skills/code-discipline/scripts/install.py",
+        "skills/code-discipline/scripts/install_local.py"
       ]
     },
     {

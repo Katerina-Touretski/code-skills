@@ -32,9 +32,11 @@ SKILL_FILES = (
     "SKILL.md",
     "agents/openai.yaml",
     "quality-thresholds.json",
+    "references/project-setup-chat.md",
     "references/quality-loop.md",
     "references/repository-setup.md",
     "scripts/install.py",
+    "scripts/install_local.py",
     "scripts/quality_loop.py",
     "scripts/quality_report.py",
     "scripts/quality_charts.py",
@@ -536,7 +538,7 @@ def print_install_result(
     print(f"Quality engine {core_version}; quality loop {loop_version}")
     if link:
         print(f"Claude link: {link}")
-    print("Repository thresholds, commands, and dependency rules were preserved.")
+    print(f"Next: read {target}/references/project-setup-chat.md; begin setup.")
 
 
 def main(argv: Sequence[str] | None = None) -> int:

@@ -1,16 +1,16 @@
 # code-discipline
 
-A self-contained Codex and Claude Code skill for engineering discipline: rules
-for readable code, a strict repository quality gate (tests, coverage,
-complexity, smoke, module boundaries), and tools that install or update it on
-macOS or Linux. The launcher uses Python 3.10+ or downloads a pinned runtime;
-it never installs the target project's dependencies.
+A self-contained Codex and Claude Code skill for engineering discipline.
+First-time [guided setup](skills/code-discipline/references/project-setup-chat.md)
+explains gates and thresholds in chat. Users enable or disable checks for each
+project; saved choices are reused, and disabled gates stay OFF. The launcher
+uses Python 3.10+ or downloads a pinned runtime; it never installs project dependencies.
 
 ## The workflow the skill enforces
 
 ```mermaid
 flowchart LR
-    S["skeleton:<br/>manifest · test runner<br/>one test · start cmd"] --> I["--init<br/>gate + git repo"]
+    S["skeleton:<br/>manifest · test runner<br/>one test · start cmd"] --> I["guided setup<br/>project gates + limits"]
     I --> F["fast run<br/>--local-changes --fast"]
     F -->|"items"| N["quality_items.py --next<br/>fix one file"] --> F
     F -->|"0 items"| K["git commit"]
@@ -29,7 +29,7 @@ checks composed-root tests for narrow anti-vacuous mocks, and rejects
 
 The nine rules of [SKILL.md](skills/code-discipline/SKILL.md), one line each:
 
-1. Deliverables first, gate before source — `--init` before the first feature.
+1. Deliverables first — guided project setup before the first feature.
 2. Read the report, not the state file; fix one file per cycle.
 3. Run the loop in the foreground only; never background it.
 4. The core user story must run: structured smoke probes are part of the report.
@@ -62,9 +62,9 @@ Sub-agents never run `--init`, never edit `.quality/`, never commit; shared
 modules (types, schemas, contracts) are edited by the parent first; a
 sub-agent's "green" is a claim, the parent's single rerun is the evidence.
 
-## Install from GitHub
+## Install and set up
 
-In the current repository:
+Ask: "Install code-discipline here from /path/to/code-skills." The agent installs it and starts setup in the same chat. Its local command is `/path/to/code-skills/skills/code-discipline/scripts/quality --install --root .`. For GitHub installation:
 
 ```bash
 curl -fsSL -H "Accept: application/vnd.github.raw+json" "https://api.github.com/repos/benrben/code-skills/contents/skills/code-discipline/scripts/install.py?ref=main" | python3 - --repo --root .
@@ -76,7 +76,7 @@ Globally for all repositories on this computer:
 curl -fsSL -H "Accept: application/vnd.github.raw+json" "https://api.github.com/repos/benrben/code-skills/contents/skills/code-discipline/scripts/install.py?ref=main" | python3 - --global
 ```
 
-Restart the agents after the first installation. Codex reads
+Read the installed guide and finish setup now; restart later for automatic discovery. Codex reads
 `.agents/skills/code-discipline`; Claude Code reads its `.claude/skills` link.
 Global installation creates the same paths under `$HOME` without cloning.
 

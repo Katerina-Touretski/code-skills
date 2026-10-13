@@ -134,6 +134,7 @@ class PortableLauncherTests(unittest.TestCase):
                 printf 'python-bin=%s\\n' "$UV_PYTHON_BIN_DIR" >> "$QUALITY_UV_LOG"
                 if [ "$1 $2" = "python find" ]; then
                     [ -f "$QUALITY_UV_READY" ] || exit 1
+                    case " $* " in *" --quiet "*) exit 0 ;; esac
                     printf '%s\\n' '{managed_python}'
                     exit 0
                 fi

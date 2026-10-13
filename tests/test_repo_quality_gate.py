@@ -4922,7 +4922,10 @@ class CheckSelectionTests(unittest.TestCase):
             root="/repo",
             generated_at="now",
             languages=[],
-            gates=[gate.off_check("mutation", "Mutation testing", "mutation")],
+            gates=[
+                gate.GateResult("format_lint", "Lint", True, "Passed"),
+                gate.off_check("mutation", "Mutation testing", "mutation"),
+            ],
             functions=[],
             mutations=[],
             dependency_violations=[],
@@ -7287,7 +7290,7 @@ def handled():
 
 class EmptyScopeAnalysisTests(unittest.TestCase):
     def analysis(self, scope: object) -> object:
-        passing = SimpleNamespace(passed=True, skipped=False, deferred=False)
+        passing = SimpleNamespace(passed=True, skipped=False, deferred=False, off=False)
         return gate.AnalysisReport(
             root=".",
             generated_at="now",

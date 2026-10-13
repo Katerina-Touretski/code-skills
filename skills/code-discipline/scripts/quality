@@ -172,6 +172,10 @@ esac
 launcher_dir=$(CDPATH= cd "$(dirname "$launcher_path")" 2>/dev/null && pwd -P) || \
     fail "cannot locate quality-loop scripts"
 quality_loop="$launcher_dir/quality_loop.py"
+if [ "${1:-}" = "--install" ]; then
+    shift
+    quality_loop="$launcher_dir/install_local.py"
+fi
 [ -f "$quality_loop" ] || fail "quality-loop script is missing: $quality_loop"
 
 HOST_OS=$(uname -s 2>/dev/null) || fail "cannot identify operating system"
@@ -202,7 +206,7 @@ mkdir -p "$python_install_dir" "$python_bin_dir" "$uv_cache_dir" || \
 find_managed_python() {
     UV_CACHE_DIR="$uv_cache_dir" UV_PYTHON_BIN_DIR="$python_bin_dir" \
         UV_PYTHON_INSTALL_DIR="$python_install_dir" \
-        "$uv_path" python find --quiet --no-project --managed-python \
+        "$uv_path" python find --no-project --managed-python \
         --no-python-downloads --no-config "$MANAGED_PYTHON_VERSION"
 }
 
